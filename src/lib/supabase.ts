@@ -1,8 +1,8 @@
 // Supabase API integration layer
 // This file handles all API calls to Supabase backend
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = "https://ykzkkusvgchflaprplnn.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlremtrdXN2Z2NoZmxhcHJwbG5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMjUwNzMsImV4cCI6MjA3MzkwMTA3M30.g7BMW6rg-F8i7R-pNxYtYrberEAxOCn0jxffcxboC0Q";
 
 class SupabaseAPI {
   private baseUrl: string;

@@ -64,7 +64,10 @@ export default function Login() {
         title: "Login realizado!",
         description: "Bem-vindo de volta ao GameWork!",
       });
-      navigate('/dashboard');
+      const stored = localStorage.getItem('supabase_user');
+      const parsed = stored ? JSON.parse(stored) : null;
+      const isAdmin = parsed?.is_admin === true;
+      navigate(isAdmin ? '/admin' : '/dashboard');
     } catch (error) {
       toast({
         title: "Erro no login",

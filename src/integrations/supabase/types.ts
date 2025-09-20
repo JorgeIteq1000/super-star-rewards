@@ -14,13 +14,214 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      event_types: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          id: string
+          key: string
+          max_per_day: number | null
+          points: number
+          title: string
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          key: string
+          max_per_day?: number | null
+          points: number
+          title: string
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          key?: string
+          max_per_day?: number | null
+          points?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      point_transactions: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          event_type_id: string | null
+          id: string
+          points: number
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          event_type_id?: string | null
+          id?: string
+          points: number
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          event_type_id?: string | null
+          id?: string
+          points?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_transactions_event_type_id_fkey"
+            columns: ["event_type_id"]
+            isOneToOne: false
+            referencedRelation: "event_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prizes: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          points_cost: number
+          quantity_available: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          points_cost: number
+          quantity_available?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          points_cost?: number
+          quantity_available?: number | null
+        }
+        Relationships: []
+      }
+      redemptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          points_cost: number
+          prize_id: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          points_cost: number
+          prize_id?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          points_cost?: number
+          prize_id?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redemptions_prize_id_fkey"
+            columns: ["prize_id"]
+            isOneToOne: false
+            referencedRelation: "prizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          department: string | null
+          email: string | null
+          id: string
+          is_admin: boolean | null
+          name: string | null
+          points: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          id?: string
+          is_admin?: boolean | null
+          name?: string | null
+          points?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          id?: string
+          is_admin?: boolean | null
+          name?: string | null
+          points?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_point_transaction: {
+        Args: {
+          p_description: string
+          p_event_type_id: string
+          p_points: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      redeem_prize: {
+        Args: { p_prize_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
