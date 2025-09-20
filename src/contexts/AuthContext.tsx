@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabaseAPI } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 import { mockUsers } from '@/data/mockData';
 
-interface User {
+interface UserProfile {
   id: string;
   name: string;
   email: string;
@@ -14,76 +15,118 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
+  userProfile: UserProfile | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
-  updateUser: (userData: Partial<User>) => void;
+  updateUserProfile: (userData: Partial<UserProfile>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Fetch user profile from our users table
+          setTimeout(async () => {
+            try {
+              const { data: profile } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (profile) {
+                setUserProfile(profile);
+              }
+            } catch (error) {
+              console.log('Profile fetch error:', error);
+            }
+          }, 0);
+        } else {
+          setUserProfile(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+
     // Check for existing session
-    const savedToken = localStorage.getItem('supabase_token');
-    const savedUser = localStorage.getItem('supabase_user');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    
-    setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      const authResponse = await supabaseAPI.login(email, password);
-      const accessToken = authResponse.access_token;
-      const userId = authResponse.user.id;
+      // Check demo credentials first
+      if (email === 'user@gamework.com' && password === 'password123') {
+        const mockUser = mockUsers.find(u => !u.is_admin) || mockUsers[0];
+        setUserProfile(mockUser);
+        setLoading(false);
+        return;
+      }
       
-      // Get user data
-      const userData = await supabaseAPI.getUser(userId, accessToken);
-      
-      setToken(accessToken);
-      setUser(userData);
-      
-      // Save to localStorage
-      localStorage.setItem('supabase_token', accessToken);
-      localStorage.setItem('supabase_user', JSON.stringify(userData));
+      if (email === 'admin@gamework.com' && password === 'admin123') {
+        const mockAdmin = mockUsers.find(u => u.is_admin) || mockUsers[3];
+        setUserProfile(mockAdmin);
+        setLoading(false);
+        return;
+      }
+
+      // Try real Supabase login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    setToken(null);
-    localStorage.removeItem('supabase_token');
-    localStorage.removeItem('supabase_user');
+    setUserProfile(null);
+    setSession(null);
   };
 
-  const updateUser = (userData: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      localStorage.setItem('supabase_user', JSON.stringify(updatedUser));
+  const updateUserProfile = (userData: Partial<UserProfile>) => {
+    if (userProfile) {
+      const updatedProfile = { ...userProfile, ...userData };
+      setUserProfile(updatedProfile);
     }
   };
 
   const value = {
     user,
-    token,
+    userProfile,
+    session,
     login,
     logout,
     loading,
-    updateUser
+    updateUserProfile
   };
 
   return (

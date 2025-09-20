@@ -1,38 +1,26 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trophy, Users, Gift, Plus, LogOut, Star, Target, Award, TrendingUp } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { UserCard } from "@/components/ui/user-card";
 import { PrizeCard } from "@/components/ui/prize-card";
-import { supabaseAPI } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Trophy, 
-  Star, 
-  LogOut, 
-  Users,
-  Gift,
-  Plus,
-  Edit,
-  Trash2,
-  TrendingUp,
-  Crown
-} from "lucide-react";
+import { mockUsers, mockPrizes } from "@/data/mockData";
 
 interface User {
   id: string;
   name: string;
   email: string;
-  department: string;
   points: number;
+  department: string;
   avatar_url?: string;
   is_admin: boolean;
 }
@@ -47,7 +35,7 @@ interface Prize {
 }
 
 export default function AdminDashboard() {
-  const { user, token, logout } = useAuth();
+  const { userProfile, user, session, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
@@ -69,45 +57,38 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    if (!user || !token) {
+    if (!user || !session) {
       navigate('/login');
       return;
     }
 
     // Redirect non-admin users to user dashboard
-    if (!user.is_admin) {
+    if (!userProfile?.is_admin) {
       navigate('/dashboard');
       return;
     }
 
     fetchData();
-  }, [user, token, navigate]);
+  }, [user, userProfile, session, navigate]);
 
   const fetchData = async () => {
-    if (!token) return;
+    if (!session) return;
 
     try {
-      const [usersData, prizesData] = await Promise.all([
-        supabaseAPI.getUsers(token),
-        supabaseAPI.getPrizes(token)
-      ]);
-
-      setUsers(usersData);
-      setPrizes(prizesData);
+      // Use mock data for now
+      setUsers(mockUsers);
+      setPrizes(mockPrizes);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast({
-        title: "Erro ao carregar dados",
-        description: "Tente novamente em alguns instantes.",
-        variant: "destructive"
-      });
+      setUsers(mockUsers);
+      setPrizes(mockPrizes);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddPoints = async () => {
-    if (!selectedUser || !token || !pointsToAdd || !pointsDescription) {
+    if (!selectedUser || !session || !pointsToAdd || !pointsDescription) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos.",
@@ -118,26 +99,16 @@ export default function AdminDashboard() {
 
     setIsAddingPoints(true);
     try {
-      // You'll need an event_type_id for this to work properly
-      // For demo purposes, we'll use a dummy ID
-      await supabaseAPI.addPointTransaction(
-        selectedUser.id, 
-        "dummy-event-type-id", // This should be a real event type ID
-        parseInt(pointsToAdd), 
-        pointsDescription, 
-        token
-      );
-      
+      // Mock implementation for now
       toast({
         title: "Pontos adicionados!",
         description: `${pointsToAdd} pontos foram adicionados para ${selectedUser.name}.`,
       });
       
-      // Reset form and refresh data
+      setIsAddingPoints(false);
       setSelectedUser(null);
       setPointsToAdd("");
       setPointsDescription("");
-      fetchData();
     } catch (error) {
       console.error('Error adding points:', error);
       toast({
@@ -151,7 +122,7 @@ export default function AdminDashboard() {
   };
 
   const handleCreatePrize = async () => {
-    if (!token || !prizeForm.name || !prizeForm.points_cost) {
+    if (!session || !prizeForm.name || !prizeForm.points_cost) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha pelo menos nome e custo em pontos.",
@@ -162,20 +133,13 @@ export default function AdminDashboard() {
 
     setIsCreatingPrize(true);
     try {
-      await supabaseAPI.createPrize({
-        name: prizeForm.name,
-        description: prizeForm.description,
-        image_url: prizeForm.image_url || "https://via.placeholder.com/400x300",
-        points_cost: parseInt(prizeForm.points_cost),
-        quantity_available: parseInt(prizeForm.quantity_available) || 1
-      }, token);
-      
+      // Mock implementation for now
       toast({
         title: "Prêmio criado!",
         description: "O novo prêmio foi adicionado com sucesso.",
       });
       
-      // Reset form and refresh data
+      // Reset form
       setPrizeForm({
         name: "",
         description: "",
@@ -183,7 +147,6 @@ export default function AdminDashboard() {
         points_cost: "",
         quantity_available: ""
       });
-      fetchData();
     } catch (error) {
       console.error('Error creating prize:', error);
       toast({
@@ -201,12 +164,13 @@ export default function AdminDashboard() {
     navigate('/');
   };
 
-  if (!user) return null;
-
-  const totalUsers = users.length;
-  const totalPrizes = prizes.length;
-  const totalPoints = users.reduce((sum, u) => sum + u.points, 0);
-  const averagePoints = totalUsers > 0 ? Math.round(totalPoints / totalUsers) : 0;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,7 +180,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-2 rounded-lg bg-gradient-primary">
-                <Crown className="h-8 w-8 text-primary-foreground" />
+                <Trophy className="h-8 w-8 text-primary-foreground" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold gradient-text">GameWork Admin</h1>
@@ -227,11 +191,11 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <Avatar>
-                  <AvatarImage src={user.avatar_url} alt={user.name} />
-                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarImage src={userProfile?.avatar_url} alt={userProfile?.name} />
+                  <AvatarFallback>{userProfile?.name?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="text-right">
-                  <p className="font-semibold">{user.name}</p>
+                  <p className="font-semibold">{userProfile?.name}</p>
                   <Badge variant="secondary">Admin</Badge>
                 </div>
               </div>
@@ -243,277 +207,237 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Stats Cards */}
-      <section className="py-8 px-4">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="gaming-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-full bg-primary/10">
-                    <Users className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalUsers}</p>
-                    <p className="text-sm text-muted-foreground">Colaboradores</p>
-                  </div>
+      {/* Content */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="gaming-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-primary/10">
+                  <Users className="h-6 w-6 text-primary" />
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="gaming-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-full bg-success/10">
-                    <Star className="h-6 w-6 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalPoints}</p>
-                    <p className="text-sm text-muted-foreground">Pontos Totais</p>
-                  </div>
+                <div>
+                  <p className="text-2xl font-bold">{users.length}</p>
+                  <p className="text-sm text-muted-foreground">Colaboradores</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="gaming-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-full bg-warning/10">
-                    <TrendingUp className="h-6 w-6 text-warning" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{averagePoints}</p>
-                    <p className="text-sm text-muted-foreground">Média de Pontos</p>
-                  </div>
+          <Card className="gaming-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-success/10">
+                  <Gift className="h-6 w-6 text-success" />
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="gaming-card">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-full bg-secondary/10">
-                    <Gift className="h-6 w-6 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{totalPrizes}</p>
-                    <p className="text-sm text-muted-foreground">Prêmios Ativos</p>
-                  </div>
+                <div>
+                  <p className="text-2xl font-bold">{prizes.length}</p>
+                  <p className="text-sm text-muted-foreground">Prêmios</p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Main Tabs */}
-          <Tabs defaultValue="users" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="users">
-                <Users className="h-4 w-4 mr-2" />
-                Colaboradores
-              </TabsTrigger>
-              <TabsTrigger value="prizes">
-                <Gift className="h-4 w-4 mr-2" />
-                Prêmios
-              </TabsTrigger>
-              <TabsTrigger value="ranking">
-                <Trophy className="h-4 w-4 mr-2" />
-                Ranking
-              </TabsTrigger>
-            </TabsList>
+          <Card className="gaming-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-warning/10">
+                  <Star className="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{users.reduce((acc, u) => acc + u.points, 0)}</p>
+                  <p className="text-sm text-muted-foreground">Pontos Totais</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Users Tab */}
-            <TabsContent value="users">
-              <Card className="gaming-card">
-                <CardHeader>
-                  <CardTitle>Gerenciar Colaboradores</CardTitle>
-                  <CardDescription>
-                    Adicione pontos e gerencie seus colaboradores
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {users.map((user) => (
-                      <UserCard 
-                        key={user.id} 
-                        user={user}
-                        onAddPoints={(userId) => {
-                          const user = users.find(u => u.id === userId);
-                          setSelectedUser(user || null);
-                        }}
-                        isAdmin={true}
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Prizes Tab */}
-            <TabsContent value="prizes">
-              <Card className="gaming-card">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Gerenciar Prêmios</CardTitle>
-                    <CardDescription>
-                      Crie e gerencie os prêmios disponíveis
-                    </CardDescription>
-                  </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Novo Prêmio
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Criar Novo Prêmio</DialogTitle>
-                        <DialogDescription>
-                          Adicione um novo prêmio para os colaboradores resgatarem
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="name">Nome do Prêmio</Label>
-                          <Input
-                            id="name"
-                            value={prizeForm.name}
-                            onChange={(e) => setPrizeForm({...prizeForm, name: e.target.value})}
-                            placeholder="Ex: Vale-presente Amazon R$ 100"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="description">Descrição</Label>
-                          <Textarea
-                            id="description"
-                            value={prizeForm.description}
-                            onChange={(e) => setPrizeForm({...prizeForm, description: e.target.value})}
-                            placeholder="Descreva o prêmio..."
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="image_url">URL da Imagem</Label>
-                          <Input
-                            id="image_url"
-                            value={prizeForm.image_url}
-                            onChange={(e) => setPrizeForm({...prizeForm, image_url: e.target.value})}
-                            placeholder="https://..."
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="points_cost">Custo em Pontos</Label>
-                            <Input
-                              id="points_cost"
-                              type="number"
-                              value={prizeForm.points_cost}
-                              onChange={(e) => setPrizeForm({...prizeForm, points_cost: e.target.value})}
-                              placeholder="500"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="quantity">Quantidade</Label>
-                            <Input
-                              id="quantity"
-                              type="number"
-                              value={prizeForm.quantity_available}
-                              onChange={(e) => setPrizeForm({...prizeForm, quantity_available: e.target.value})}
-                              placeholder="10"
-                            />
-                          </div>
-                        </div>
-                        <Button 
-                          onClick={handleCreatePrize} 
-                          disabled={isCreatingPrize}
-                          className="w-full"
-                        >
-                          {isCreatingPrize ? "Criando..." : "Criar Prêmio"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {prizes.map((prize) => (
-                      <PrizeCard 
-                        key={prize.id} 
-                        prize={prize} 
-                        isRedeemable={false}
-                      />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Ranking Tab */}
-            <TabsContent value="ranking">
-              <Card className="gaming-card">
-                <CardHeader>
-                  <CardTitle>Ranking Geral</CardTitle>
-                  <CardDescription>
-                    Ranking completo de todos os colaboradores
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {users
-                      .sort((a, b) => b.points - a.points)
-                      .map((user, index) => (
-                        <UserCard 
-                          key={user.id} 
-                          user={user} 
-                          rank={index + 1}
-                        />
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          <Card className="gaming-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-destructive/10">
+                  <TrendingUp className="h-6 w-6 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">32</p>
+                  <p className="text-sm text-muted-foreground">Resgates</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </section>
 
-      {/* Add Points Dialog */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar Pontos</DialogTitle>
-            <DialogDescription>
-              Adicione pontos para {selectedUser?.name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="points">Quantidade de Pontos</Label>
-              <Input
-                id="points"
-                type="number"
-                value={pointsToAdd}
-                onChange={(e) => setPointsToAdd(e.target.value)}
-                placeholder="100"
-              />
-            </div>
-            <div>
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={pointsDescription}
-                onChange={(e) => setPointsDescription(e.target.value)}
-                placeholder="Ex: Venda realizada com sucesso"
-              />
-            </div>
-            <Button 
-              onClick={handleAddPoints} 
-              disabled={isAddingPoints}
-              className="w-full"
-            >
-              {isAddingPoints ? "Adicionando..." : "Adicionar Pontos"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Users Management */}
+          <Card className="gaming-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Gerenciar Colaboradores</CardTitle>
+                  <CardDescription>Adicione pontos e gerencie usuários</CardDescription>
+                </div>
+                <Dialog open={isAddingPoints} onOpenChange={setIsAddingPoints}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Pontos
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Adicionar Pontos</DialogTitle>
+                      <DialogDescription>
+                        Selecione um colaborador e adicione pontos
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Colaborador</Label>
+                        <Select onValueChange={(value) => setSelectedUser(users.find(u => u.id === value) || null)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um colaborador" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {users.filter(u => !u.is_admin).map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name} ({user.department})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Pontos</Label>
+                        <Input 
+                          type="number" 
+                          value={pointsToAdd} 
+                          onChange={(e) => setPointsToAdd(e.target.value)}
+                          placeholder="Ex: 100" 
+                        />
+                      </div>
+                      <div>
+                        <Label>Descrição</Label>
+                        <Input 
+                          value={pointsDescription} 
+                          onChange={(e) => setPointsDescription(e.target.value)}
+                          placeholder="Ex: Meta batida em vendas" 
+                        />
+                      </div>
+                      <Button onClick={handleAddPoints} disabled={isAddingPoints} className="w-full">
+                        {isAddingPoints ? "Adicionando..." : "Adicionar Pontos"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {users.filter(u => !u.is_admin).map((user) => (
+                  <UserCard key={user.id} user={user} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Prizes Management */}
+          <Card className="gaming-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Gerenciar Prêmios</CardTitle>
+                  <CardDescription>Crie e edite prêmios disponíveis</CardDescription>
+                </div>
+                <Dialog open={isCreatingPrize} onOpenChange={setIsCreatingPrize}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Prêmio
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Criar Novo Prêmio</DialogTitle>
+                      <DialogDescription>
+                        Preencha as informações do prêmio
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Nome</Label>
+                        <Input 
+                          value={prizeForm.name} 
+                          onChange={(e) => setPrizeForm({...prizeForm, name: e.target.value})}
+                          placeholder="Nome do prêmio" 
+                        />
+                      </div>
+                      <div>
+                        <Label>Descrição</Label>
+                        <Input 
+                          value={prizeForm.description} 
+                          onChange={(e) => setPrizeForm({...prizeForm, description: e.target.value})}
+                          placeholder="Descrição do prêmio" 
+                        />
+                      </div>
+                      <div>
+                        <Label>URL da Imagem</Label>
+                        <Input 
+                          value={prizeForm.image_url} 
+                          onChange={(e) => setPrizeForm({...prizeForm, image_url: e.target.value})}
+                          placeholder="URL da imagem" 
+                        />
+                      </div>
+                      <div>
+                        <Label>Custo em Pontos</Label>
+                        <Input 
+                          type="number"
+                          value={prizeForm.points_cost} 
+                          onChange={(e) => setPrizeForm({...prizeForm, points_cost: e.target.value})}
+                          placeholder="Ex: 500" 
+                        />
+                      </div>
+                      <div>
+                        <Label>Quantidade Disponível</Label>
+                        <Input 
+                          type="number"
+                          value={prizeForm.quantity_available} 
+                          onChange={(e) => setPrizeForm({...prizeForm, quantity_available: e.target.value})}
+                          placeholder="Ex: 10" 
+                        />
+                      </div>
+                      <Button onClick={handleCreatePrize} disabled={isCreatingPrize} className="w-full">
+                        {isCreatingPrize ? "Criando..." : "Criar Prêmio"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {prizes.map((prize) => (
+                  <div key={prize.id} className="flex items-center gap-4 p-4 rounded-lg border">
+                    <img 
+                      src={prize.image_url} 
+                      alt={prize.name}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{prize.name}</h4>
+                      <p className="text-sm text-muted-foreground">{prize.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline">{prize.points_cost} pts</Badge>
+                        <Badge variant="secondary">{prize.quantity_available} disponível</Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
