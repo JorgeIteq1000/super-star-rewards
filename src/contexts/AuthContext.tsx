@@ -99,6 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         throw error;
       }
+      
+      // User profile will be set by the auth state change listener
     } catch (error) {
       console.error('Login error:', error);
       throw error;
