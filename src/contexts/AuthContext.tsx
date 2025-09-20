@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile from our users table
+          // Fetch user profile from our users table with a small delay to avoid deadlock
           setTimeout(async () => {
             try {
               const { data: profile } = await supabase
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch (error) {
               console.log('Profile fetch error:', error);
             }
-          }, 0);
+          }, 100);
         } else {
           setUserProfile(null);
         }
@@ -67,6 +67,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        // Fetch profile for existing session
+        setTimeout(async () => {
+          try {
+            const { data: profile } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profile) {
+              setUserProfile(profile);
+            }
+          } catch (error) {
+            console.log('Profile fetch error:', error);
+          }
+        }, 100);
+      }
+      
       setLoading(false);
     });
 
