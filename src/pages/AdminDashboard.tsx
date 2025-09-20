@@ -41,6 +41,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [prizes, setPrizes] = useState<Prize[]>([]);
+  const [redemptionsCount, setRedemptionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isAddingPoints, setIsAddingPoints] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -92,8 +93,16 @@ export default function AdminDashboard() {
 
       if (prizesError) throw prizesError;
 
+      // Fetch redemptions count
+      const { count, error: redemptionsError } = await supabase
+        .from('redemptions')
+        .select('*', { count: 'exact', head: true });
+
+      if (redemptionsError) throw redemptionsError;
+
       setUsers(usersData || []);
       setPrizes(prizesData || []);
+      setRedemptionsCount(count || 0);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -104,6 +113,7 @@ export default function AdminDashboard() {
       // Fallback to mock data only if needed
       setUsers(mockUsers);
       setPrizes(mockPrizes);
+      setRedemptionsCount(0);
     } finally {
       setLoading(false);
     }
@@ -334,7 +344,7 @@ export default function AdminDashboard() {
                   <TrendingUp className="h-6 w-6 text-destructive" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">32</p>
+                  <p className="text-2xl font-bold">{redemptionsCount}</p>
                   <p className="text-sm text-muted-foreground">Resgates</p>
                 </div>
               </div>
@@ -351,7 +361,7 @@ export default function AdminDashboard() {
                   <CardTitle>Gerenciar Colaboradores</CardTitle>
                   <CardDescription>Adicione pontos e gerencie usuários</CardDescription>
                 </div>
-                <Dialog open={isAddingPoints} onOpenChange={setIsAddingPoints}>
+                <Dialog>
                   <DialogTrigger asChild>
                     <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
@@ -375,7 +385,7 @@ export default function AdminDashboard() {
                           <SelectContent>
                             {users.filter(u => !u.is_admin).map((user) => (
                               <SelectItem key={user.id} value={user.id}>
-                                {user.name} ({user.department})
+                                {user.name || user.email} ({user.department || 'Sem departamento'})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -398,7 +408,11 @@ export default function AdminDashboard() {
                           placeholder="Ex: Meta batida em vendas" 
                         />
                       </div>
-                      <Button onClick={handleAddPoints} disabled={isAddingPoints} className="w-full">
+                      <Button 
+                        onClick={handleAddPoints} 
+                        disabled={isAddingPoints || !selectedUser || !pointsToAdd || !pointsDescription} 
+                        className="w-full"
+                      >
                         {isAddingPoints ? "Adicionando..." : "Adicionar Pontos"}
                       </Button>
                     </div>
@@ -423,7 +437,7 @@ export default function AdminDashboard() {
                   <CardTitle>Gerenciar Prêmios</CardTitle>
                   <CardDescription>Crie e edite prêmios disponíveis</CardDescription>
                 </div>
-                <Dialog open={isCreatingPrize} onOpenChange={setIsCreatingPrize}>
+                <Dialog>
                   <DialogTrigger asChild>
                     <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
@@ -480,7 +494,11 @@ export default function AdminDashboard() {
                           placeholder="Ex: 10" 
                         />
                       </div>
-                      <Button onClick={handleCreatePrize} disabled={isCreatingPrize} className="w-full">
+                      <Button 
+                        onClick={handleCreatePrize} 
+                        disabled={isCreatingPrize || !prizeForm.name || !prizeForm.points_cost} 
+                        className="w-full"
+                      >
                         {isCreatingPrize ? "Criando..." : "Criar Prêmio"}
                       </Button>
                     </div>
