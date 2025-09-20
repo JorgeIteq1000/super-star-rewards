@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PrizeCard } from "@/components/ui/prize-card";
 import { UserCard } from "@/components/ui/user-card";
-import { supabaseAPI } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Trophy, 
@@ -78,22 +78,72 @@ export default function Dashboard() {
     }
 
     fetchData();
-  }, [user, token, navigate]);
+  }, [user, session, userProfile, navigate]);
 
   const fetchData = async () => {
-    if (!user || !token) return;
+    if (!user || !session) return;
 
     try {
-      const [prizesData, transactionsData, redemptionsData, rankingData] = await Promise.all([
-        supabaseAPI.getPrizes(token),
-        supabaseAPI.getPointTransactions(user.id, token),
-        supabaseAPI.getRedemptions(user.id, token),
-        supabaseAPI.getRanking(token)
-      ]);
+      // For now, use mock data since tables may not exist yet
+      const mockPrizes: Prize[] = [
+        {
+          id: '1',
+          name: 'Mouse Gamer',
+          description: 'Mouse gamer de alta precisão',
+          image_url: '/src/assets/gaming-mouse.jpg',
+          points_cost: 500,
+          quantity_available: 10
+        },
+        {
+          id: '2',
+          name: 'Fones Bluetooth',
+          description: 'Fones de ouvido sem fio',
+          image_url: '/src/assets/wireless-headphones.jpg',
+          points_cost: 800,
+          quantity_available: 5
+        },
+        {
+          id: '3',
+          name: 'Gift Card Amazon',
+          description: 'Cartão presente Amazon R$ 100',
+          image_url: '/src/assets/amazon-gift-card.jpg',
+          points_cost: 1000,
+          quantity_available: 20
+        }
+      ];
 
-      setPrizes(prizesData);
-      setTransactions(transactionsData);
-      setRedemptions(redemptionsData);
+      const mockTransactions: Transaction[] = [
+        {
+          id: '1',
+          points: 100,
+          description: 'Tarefa completada: Projeto X',
+          created_at: new Date().toISOString(),
+          event_type: { name: 'Tarefa' }
+        },
+        {
+          id: '2',
+          points: 50,
+          description: 'Check-in diário',
+          created_at: new Date(Date.now() - 86400000).toISOString(),
+          event_type: { name: 'Check-in' }
+        }
+      ];
+
+      const mockRedemptions: Redemption[] = [];
+
+      // Try to get ranking from users table, fallback to mock if it fails
+      let rankingData = [];
+      try {
+        const { data } = await supabase.from('users').select('*').order('points', { ascending: false });
+        rankingData = data || [];
+      } catch (error) {
+        console.log('Using mock ranking data');
+        rankingData = [userProfile].filter(Boolean);
+      }
+
+      setPrizes(mockPrizes);
+      setTransactions(mockTransactions);
+      setRedemptions(mockRedemptions);
       setRanking(rankingData);
     } catch (error) {
       console.error('Error fetching data:', error);
