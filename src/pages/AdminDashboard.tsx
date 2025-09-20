@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UserCard } from "@/components/ui/user-card";
 import { PrizeCard } from "@/components/ui/prize-card";
 import { mockUsers, mockPrizes } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 
 interface User {
   id: string;
@@ -73,14 +74,34 @@ export default function AdminDashboard() {
   }, [user, userProfile, session, navigate]);
 
   const fetchData = async () => {
-    if (!session) return;
-
     try {
-      // Use mock data for now
-      setUsers(mockUsers);
-      setPrizes(mockPrizes);
+      // Fetch real users data
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('points', { ascending: false });
+
+      if (usersError) throw usersError;
+
+      // Fetch real prizes data
+      const { data: prizesData, error: prizesError } = await supabase
+        .from('prizes')
+        .select('*')
+        .eq('active', true)
+        .order('created_at', { ascending: false });
+
+      if (prizesError) throw prizesError;
+
+      setUsers(usersData || []);
+      setPrizes(prizesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Usando dados de demonstração. Verifique sua conexão.",
+        variant: "destructive"
+      });
+      // Fallback to mock data only if needed
       setUsers(mockUsers);
       setPrizes(mockPrizes);
     } finally {
@@ -89,7 +110,7 @@ export default function AdminDashboard() {
   };
 
   const handleAddPoints = async () => {
-    if (!selectedUser || !session || !pointsToAdd || !pointsDescription) {
+    if (!selectedUser || !pointsToAdd || !pointsDescription) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha todos os campos.",
@@ -100,13 +121,49 @@ export default function AdminDashboard() {
 
     setIsAddingPoints(true);
     try {
-      // Mock implementation for now
+      // Get the first event type (or create a default one for manual points)
+      const { data: eventTypes } = await supabase
+        .from('event_types')
+        .select('*')
+        .eq('active', true)
+        .limit(1);
+
+      let eventTypeId = eventTypes?.[0]?.id;
+      
+      // If no event type exists, create a default one for manual additions
+      if (!eventTypeId) {
+        const { data: newEventType, error: eventError } = await supabase
+          .from('event_types')
+          .insert({
+            title: 'Adição Manual de Pontos',
+            key: 'manual_points',
+            points: 0, // Will be overridden by the function
+            active: true
+          })
+          .select()
+          .single();
+
+        if (eventError) throw eventError;
+        eventTypeId = newEventType.id;
+      }
+
+      // Call the add_point_transaction function
+      const { error } = await supabase.rpc('add_point_transaction', {
+        p_user_id: selectedUser.id,
+        p_event_type_id: eventTypeId,
+        p_points: parseInt(pointsToAdd),
+        p_description: pointsDescription
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Pontos adicionados!",
-        description: `${pointsToAdd} pontos foram adicionados para ${selectedUser.name}.`,
+        description: `${pointsToAdd} pontos foram adicionados para ${selectedUser.name || selectedUser.email}.`,
       });
       
-      setIsAddingPoints(false);
+      // Refresh data and reset form
+      await fetchData();
       setSelectedUser(null);
       setPointsToAdd("");
       setPointsDescription("");
@@ -123,7 +180,7 @@ export default function AdminDashboard() {
   };
 
   const handleCreatePrize = async () => {
-    if (!session || !prizeForm.name || !prizeForm.points_cost) {
+    if (!prizeForm.name || !prizeForm.points_cost) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha pelo menos nome e custo em pontos.",
@@ -134,13 +191,26 @@ export default function AdminDashboard() {
 
     setIsCreatingPrize(true);
     try {
-      // Mock implementation for now
+      const { error } = await supabase
+        .from('prizes')
+        .insert({
+          name: prizeForm.name,
+          description: prizeForm.description || null,
+          image_url: prizeForm.image_url || null,
+          points_cost: parseInt(prizeForm.points_cost),
+          quantity_available: prizeForm.quantity_available ? parseInt(prizeForm.quantity_available) : null,
+          active: true
+        });
+
+      if (error) throw error;
+
       toast({
         title: "Prêmio criado!",
         description: "O novo prêmio foi adicionado com sucesso.",
       });
       
-      // Reset form
+      // Refresh data and reset form
+      await fetchData();
       setPrizeForm({
         name: "",
         description: "",
