@@ -218,6 +218,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_user_admin: {
+        Args: { _user_id?: string }
+        Returns: boolean
+      }
       redeem_prize: {
         Args: { p_prize_id: string }
         Returns: string
