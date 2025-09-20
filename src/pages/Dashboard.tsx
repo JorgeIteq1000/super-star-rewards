@@ -36,7 +36,7 @@ interface Transaction {
   points: number;
   description: string;
   created_at: string;
-  event_type: { name: string };
+  event_type?: { title: string };
 }
 
 interface Redemption {
@@ -47,12 +47,12 @@ interface Redemption {
 
 interface RankingUser {
   id: string;
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   points: number;
-  department: string;
+  department?: string;
   avatar_url?: string;
-  is_admin: boolean;
+  is_admin?: boolean;
 }
 
 export default function Dashboard() {
@@ -82,10 +82,59 @@ export default function Dashboard() {
   }, [user, session, userProfile, navigate]);
 
   const fetchData = async () => {
-    if (!user || !session) return;
-
     try {
-      // For now, use mock data since tables may not exist yet
+      // Fetch real prizes data
+      const { data: prizesData, error: prizesError } = await supabase
+        .from('prizes')
+        .select('*')
+        .eq('active', true)
+        .order('created_at', { ascending: false });
+
+      if (prizesError) throw prizesError;
+
+      // Fetch real transactions data for current user
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('point_transactions')
+        .select(`
+          *,
+          event_type:event_types(title)
+        `)
+        .eq('user_id', user?.id || userProfile?.id)
+        .order('created_at', { ascending: false });
+
+      if (transactionsError) throw transactionsError;
+
+      // Fetch real redemptions data for current user
+      const { data: redemptionsData, error: redemptionsError } = await supabase
+        .from('redemptions')
+        .select(`
+          *,
+          prize:prizes(*)
+        `)
+        .eq('user_id', user?.id || userProfile?.id)
+        .order('created_at', { ascending: false });
+
+      if (redemptionsError) throw redemptionsError;
+
+      // Fetch ranking from users table
+      const { data: rankingData } = await supabase
+        .from('users')
+        .select('*')
+        .order('points', { ascending: false });
+
+      setPrizes(prizesData || []);
+      setTransactions(transactionsData || []);
+      setRedemptions(redemptionsData || []);
+      setRanking(rankingData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Usando dados de demonstração. Verifique sua conexão.",
+        variant: "destructive"
+      });
+      
+      // Fallback to mock data only if needed
       const mockPrizes: Prize[] = [
         {
           id: '1',
@@ -119,61 +168,51 @@ export default function Dashboard() {
           points: 100,
           description: 'Tarefa completada: Projeto X',
           created_at: new Date().toISOString(),
-          event_type: { name: 'Tarefa' }
+          event_type: { title: 'Tarefa' }
         },
         {
           id: '2',
           points: 50,
           description: 'Check-in diário',
           created_at: new Date(Date.now() - 86400000).toISOString(),
-          event_type: { name: 'Check-in' }
+          event_type: { title: 'Check-in' }
         }
       ];
 
       const mockRedemptions: Redemption[] = [];
 
-      // Try to get ranking from users table, fallback to mock if it fails
-      let rankingData = [];
-      try {
-        const { data } = await supabase.from('users').select('*').order('points', { ascending: false });
-        rankingData = data || [];
-      } catch (error) {
-        console.log('Using mock ranking data');
-        rankingData = [userProfile].filter(Boolean);
-      }
-
       setPrizes(mockPrizes);
       setTransactions(mockTransactions);
       setRedemptions(mockRedemptions);
-      setRanking(rankingData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: "Erro ao carregar dados",
-        description: "Tente novamente em alguns instantes.",
-        variant: "destructive"
-      });
+      setRanking([userProfile].filter(Boolean));
     } finally {
       setLoading(false);
     }
   };
 
   const handleRedeemPrize = async (prizeId: string) => {
-    if (!userProfile || !session) return;
+    if (!userProfile || !user) return;
 
     try {
-      // Mock implementation for now
+      // Call the redeem_prize function
+      const { data, error } = await supabase.rpc('redeem_prize', {
+        p_prize_id: prizeId
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Prêmio resgatado!",
-        description: "Parabéns! Seu prêmio foi resgatado com sucesso.",
+        description: data || "Parabéns! Seu prêmio foi resgatado com sucesso.",
       });
       
-      // Refresh data would go here
-    } catch (error) {
+      // Refresh data
+      await fetchData();
+    } catch (error: any) {
       console.error('Error redeeming prize:', error);
       toast({
         title: "Erro no resgate",
-        description: "Não foi possível resgatar o prêmio. Tente novamente.",
+        description: error.message || "Não foi possível resgatar o prêmio. Tente novamente.",
         variant: "destructive"
       });
     }
@@ -449,13 +488,19 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {ranking.map((user, index) => (
-                      <UserCard 
-                        key={user.id} 
-                        user={user} 
-                        rank={index + 1}
-                      />
-                    ))}
+                     {ranking.map((user, index) => (
+                       <UserCard 
+                         key={user.id} 
+                         user={{
+                           ...user,
+                           is_admin: user.is_admin || false,
+                           name: user.name || user.email || 'Usuário',
+                           email: user.email || '',
+                           department: user.department || 'Sem departamento'
+                         }} 
+                         rank={index + 1}
+                       />
+                     ))}
                   </div>
                 </CardContent>
               </Card>
