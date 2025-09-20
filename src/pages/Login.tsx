@@ -43,43 +43,12 @@ export default function Login() {
 
     setLoading(true);
     try {
-      // Check demo credentials first
-      if (email === demoCredentials.user.email && password === demoCredentials.user.password) {
-        // Mock user login
-        const mockUser = mockUsers.find(u => !u.is_admin) || mockUsers[0];
-        localStorage.setItem('supabase_token', 'demo_token_user');
-        localStorage.setItem('supabase_user', JSON.stringify(mockUser));
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo de volta ao GameWork! (Modo Demo)",
-        });
-        navigate('/dashboard');
-        return;
-      }
-      
-      if (email === demoCredentials.admin.email && password === demoCredentials.admin.password) {
-        // Mock admin login
-        const mockAdmin = mockUsers.find(u => u.is_admin) || mockUsers[3];
-        localStorage.setItem('supabase_token', 'demo_token_admin');
-        localStorage.setItem('supabase_user', JSON.stringify(mockAdmin));
-        toast({
-          title: "Login realizado!",
-          description: "Bem-vindo, Administrador! (Modo Demo)",
-        });
-        navigate('/admin');
-        return;
-      }
-
-      // Try real Supabase login
       await login(email, password);
       toast({
         title: "Login realizado!",
         description: "Bem-vindo de volta ao GameWork!",
       });
-      const stored = localStorage.getItem('supabase_user');
-      const parsed = stored ? JSON.parse(stored) : null;
-      const isAdmin = parsed?.is_admin === true;
-      navigate(isAdmin ? '/admin' : '/dashboard');
+      // Redirecionamento automático acontece no useEffect acima
     } catch (error) {
       toast({
         title: "Erro no login",

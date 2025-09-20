@@ -66,7 +66,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !session) {
+    // Permite acesso se houver perfil em memória (modo demo) OU sessão real
+    if (!userProfile && (!user || !session)) {
       navigate('/login');
       return;
     }
