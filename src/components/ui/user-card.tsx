@@ -6,11 +6,11 @@ import { Trophy, Star, Plus } from "lucide-react";
 
 interface User {
   id: string;
-  name: string;
-  email: string;
-  department: string;
+  name?: string | null;
+  email?: string | null;
+  department?: string | null;
   points: number;
-  avatar_url?: string;
+  avatar_url?: string | null;
   is_admin: boolean;
 }
 
@@ -49,12 +49,14 @@ export function UserCard({ user, rank, onAddPoints, isAdmin = false }: UserCardP
             </Badge>
           )}
           <Avatar className="h-12 w-12">
-            <AvatarImage src={user.avatar_url} alt={user.name} />
-            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={user.avatar_url} alt={user.name || user.email} />
+            <AvatarFallback>
+              {user.name ? user.name.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase() || '?'}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h3 className="font-semibold text-lg">{user.name}</h3>
-            <p className="text-muted-foreground text-sm">{user.department}</p>
+            <h3 className="font-semibold text-lg">{user.name || user.email || 'Usuário'}</h3>
+            <p className="text-muted-foreground text-sm">{user.department || 'Sem departamento'}</p>
           </div>
           {user.is_admin && (
             <Badge variant="outline">Admin</Badge>

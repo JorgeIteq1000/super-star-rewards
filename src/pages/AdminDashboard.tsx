@@ -191,11 +191,14 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <Avatar>
-                  <AvatarImage src={userProfile?.avatar_url} alt={userProfile?.name} />
-                  <AvatarFallback>{userProfile?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarImage src={userProfile?.avatar_url} alt={userProfile?.name || userProfile?.email} />
+                  <AvatarFallback>
+                    {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : 
+                     userProfile?.email?.charAt(0).toUpperCase() || '?'}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="text-right">
-                  <p className="font-semibold">{userProfile?.name}</p>
+                  <p className="font-semibold">{userProfile?.name || userProfile?.email || 'Usuário'}</p>
                   <Badge variant="secondary">Admin</Badge>
                 </div>
               </div>

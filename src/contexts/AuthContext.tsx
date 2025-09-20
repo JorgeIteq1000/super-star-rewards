@@ -5,11 +5,11 @@ import { mockUsers } from '@/data/mockData';
 
 interface UserProfile {
   id: string;
-  name: string;
-  email: string;
-  department: string;
+  name?: string | null;
+  email?: string | null;
+  department?: string | null;
   points: number;
-  avatar_url?: string;
+  avatar_url?: string | null;
   is_admin: boolean;
 }
 
